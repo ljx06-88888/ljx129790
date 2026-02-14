@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  workspace:
+    image: codercom/code-server:4.95.3
+    container_name: ai-workspace
+    restart: unless-stopped
+    environment:
+      - PASSWORD=${CODE_SERVER_PASSWORD:-changeme123}
+    volumes:
+      - ./workspace:/home/coder/project
+    ports:
+      - "${CODE_SERVER_PORT:-8080}:8080"
+    command: --auth password --bind-addr 0.0.0.0:8080 /home/coder/project
+
+  jupyter:
+    image: jupyter/scipy-notebook:python-3.11
+    container_name: ai-jupyter
+    restart: unless-stopped
+    environment:
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-changeme123}
+    volumes:
+      - ./workspace:/home/jovyan/work
+    ports:
+      - "${JUPYTER_PORT:-8888}:8888"
+    command: start-notebook.py --NotebookApp.token=${JUPYTER_TOKEN:-changeme123} --NotebookApp.password=''
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-ollama
+    restart: unless-stopped
+    volumes:
+      - ./ollama:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: ai-open-webui
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-change-this-secret-key}
+    volumes:
+      - ./open-webui:/app/backend/data
+    ports:
+      - "${OPEN_WEBUI_PORT:-3000}:8080"
+
+networks:
+  default:
+    name: ai-space-net
